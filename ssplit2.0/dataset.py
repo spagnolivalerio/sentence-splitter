@@ -1,12 +1,6 @@
 from pathlib import Path
-
+from torch.utils.data import Dataset
 import torch
-
-try:
-    from torch.utils.data import Dataset
-except ModuleNotFoundError:
-    class Dataset:
-        pass
 
 class TextDataset(Dataset):
     def __init__(
