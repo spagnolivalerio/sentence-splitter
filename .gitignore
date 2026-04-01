@@ -1,3 +1,56 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Coverage and build outputs
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+.eggs/
+*.egg-info/
+pip-wheel-metadata/
+
+# Local environment and editor files
+.env
+.env.*
+!.env.example
+.python-version
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Hidden local artifacts
+.codex
+**/.codex
+
+# Logs and generated outputs
+*.log
+*.out
+*.err
+inference_logs/
+
 # Model weights and checkpoints
 *.pt
-ssplit2.0/checkpoints/
+*.pth
+*.ckpt
+*.bin
+*.onnx
+*.safetensors
+checkpoints/
