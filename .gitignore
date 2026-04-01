@@ -1,0 +1,3 @@
+# Model weights and checkpoints
+*.pt
+ssplit2.0/checkpoints/

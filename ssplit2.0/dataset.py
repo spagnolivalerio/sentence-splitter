@@ -10,26 +10,46 @@ class TextDataset(Dataset):
         window_size: int,
         eos_token: str = "<EOS>",
         space_token: str = "<SPACE>",
-        boundary_token: str = "<BND>"
+        boundary_token: str = "<BND>", 
+        annotated: bool = True
     ) -> None:
         super().__init__()
         self.filename = filename
         self.tokenizer = tokenizer
         self.window_size = window_size
+        self.annotated = annotated
         self.eos_token = eos_token
         self.space_token = space_token
         self.boundary_token = boundary_token
-        self.tokenizer.add_special_tokens({"additional_special_tokens": [f"{self.space_token}", f"{self.boundary_token}"]})
-        self.samples = self._load_sentences()
-        self.serialized_corpus = self._serialize_corpus()
-        self.corpus, self.target = self._build_corpus_and_target()
-        self.dataset = self._create_dataset()
+        self.tokenizer.add_special_tokens(
+            {
+                "additional_special_tokens": [
+                    self.space_token,
+                    self.boundary_token,
+                ]
+            }
+        )
+
+        self.samples = []
+        self.serialized_corpus = ""
+        self.target = None
+
+        if self.annotated:
+            self.samples = self._load_sentences()
+            self.serialized_corpus = self._serialize_corpus()
+            self.corpus, self.target = self._build_corpus_and_target()
+            self.dataset = self._create_dataset()
+        else:
+            self.corpus = self._create_eval_corpus()
+            self.dataset = self._create_eval_dataset()
+
+    def _normalize_text(self, text: str) -> str:
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        return " ".join(" ".join(lines).split())
 
     def _load_sentences(self) -> list[str]:
         text = Path(self.filename).read_text(encoding="utf-8")
-        lines = [line.strip() for line in text.splitlines() if line.strip()]
-        text = " ".join(lines)
-        text = " ".join(text.split())
+        text = self._normalize_text(text)
 
         sentences = [sentence.strip() for sentence in text.split(self.eos_token)]
         return [sentence for sentence in sentences if sentence]
@@ -73,6 +93,29 @@ class TextDataset(Dataset):
                 target.append(1)
 
         return corpus, target
+
+    def _create_eval_corpus(self) -> list[str]:
+        text = Path(self.filename).read_text(encoding="utf-8")
+        text = self._normalize_text(text)
+
+        if not text:
+            return []
+
+        words = text.split(" ")
+        corpus = []
+
+        for word_index, word in enumerate(words):
+            if self.tokenizer is None:
+                word_tokens = [word]
+            else:
+                word_tokens = self.tokenizer.tokenize(word)
+
+            corpus.extend(word_tokens)
+
+            if word_index < len(words) - 1:
+                corpus.append(self.space_token)
+
+        return corpus
     
     def _encode_tokens(self, tokens: list[str]) -> list[int]: 
         return self.tokenizer.convert_tokens_to_ids(tokens)
@@ -114,6 +157,26 @@ class TextDataset(Dataset):
                     "input_ids": torch.tensor(input_ids, dtype=torch.long),
                     "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
                     "label": torch.tensor(self.target[index], dtype=torch.long),
+                    "center_index": torch.tensor(index, dtype=torch.long),
+                    "marker_position": torch.tensor(self.window_size, dtype=torch.long),
+                }
+            )
+
+        return dataset
+
+    def _create_eval_dataset(self):
+        dataset = []
+
+        for index, token in enumerate(self.corpus):
+            if token != self.space_token:
+                continue
+
+            input_ids, attention_mask = self.create_context(index)
+
+            dataset.append(
+                {
+                    "input_ids": torch.tensor(input_ids, dtype=torch.long),
+                    "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
                     "center_index": torch.tensor(index, dtype=torch.long),
                     "marker_position": torch.tensor(self.window_size, dtype=torch.long),
                 }
